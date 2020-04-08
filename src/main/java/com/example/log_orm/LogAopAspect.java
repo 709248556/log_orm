@@ -7,6 +7,7 @@ import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.context.ApplicationContext;
 
 import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
@@ -17,22 +18,22 @@ import java.util.Date;
  * @author yanlianglong
  * @Title: LogAopAspect.java
  * @Package com.example.log_orm
- * @Description:
+ * @Description: ①切面注解得到请求数据 -> ②发布监听事件 -> ③异步监听日志入库
  * @date 2020/3/10 10:54
  */
 @Order(3)
 @Component
 @Aspect
 public class LogAopAspect {
-    // 日志mapper，这里省事少写了service
+
+    /**
+     * 事件发布是由ApplicationContext对象管控的，我们发布事件前需要注入ApplicationContext对象调用publishEvent方法完成事件发布
+     **/
     @Autowired
-    private LogDao logMapper;
+    private ApplicationContext applicationContext;
 
     /**
      * 环绕通知记录日志通过注解匹配到需要增加日志功能的方法
-     *
-     * @param pjp
-     * @throws Throwable
      */
     @Around("@annotation(com.example.log_orm.LogAnno)")
     public Object aroundAdvice(ProceedingJoinPoint pjp) throws Throwable {
@@ -71,7 +72,10 @@ public class LogAopAspect {
         } finally {
             // 4.相当于最终通知
             log.setOperateDate(new Date());// 设置操作日期
-            logMapper.insert(log);// 添加日志记录
+//            logMapper.insert(log);// 添加日志记录
+            // 发布事件
+            applicationContext.publishEvent(new LogEvent(log));
+            System.out.println("发布事件成功");
         }
         return result;
     }
